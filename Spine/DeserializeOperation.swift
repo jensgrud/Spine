@@ -187,6 +187,7 @@ class DeserializeOperation: Operation {
 		resource.meta = representation["meta"].dictionaryObject
 		extractAttributes(from: representation, intoResource: resource)
 		extractRelationships(from: representation, intoResource: resource)
+        extractLinks(from: representation, intoResource: resource)
 		
 		resource.isLoaded = true
 		
@@ -226,6 +227,41 @@ class DeserializeOperation: Operation {
 		}
 	}
 	
+    // MARK: Links
+    
+    /// Extracts the links from the given data into the given resource.
+    ///
+    /// - parameter serializedData: The data from which to extract the links.
+    /// - parameter resource:       The resource into which to extract the links.
+    private func extractLinks(from serializedData: JSON, intoResource resource: Resource) {
+        for case let field as Attribute in resource.fields {
+            
+            let key = keyFormatter.format(field)
+            
+            guard let extractedValue = extractLink(key, from: serializedData) else {
+                continue
+            }
+            
+            let formattedValue = valueFormatters.unformatValue(extractedValue, forAttribute: field)
+            resource.setValue(formattedValue, forField: field.name)
+        }
+    }
+    
+    /// Extracts the value for the given key from the passed serialized data.
+    ///
+    /// - parameter key:            The data from which to extract the link.
+    /// - parameter serializedData: The key for which to extract the value from the data.
+    ///
+    /// - returns: The extracted value or nil if no attribute with the given key was found in the data.
+    private func extractLink(_ key: String, from serializedData: JSON) -> Any? {
+        let value = serializedData["links"][key]
+        
+        if let _ = value.null {
+            return nil
+        } else {
+            return value.rawValue
+        }
+    }
 	
 	// MARK: Relationships
 	
