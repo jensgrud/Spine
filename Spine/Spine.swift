@@ -174,6 +174,37 @@ open class Spine {
 		return promise.future
 	}
 
+    /// Fetch one resource using the given query.
+    /// If the response contains multiple resources, the first resource is returned.
+    /// If the response indicates success but doesn't contain any resources, the returned future fails.
+    ///
+    /// - parameter query: The query describing which resource to fetch.
+    ///
+    /// - returns: A future that resolves to a tuple containing the fetched resource, the document errors, the document meta, and the document jsonapi object.
+    
+    open func findOne<T: Resource>(_ query: Query<T>) -> Future<(resource: T, errors :[APIError]?, meta: Metadata?, jsonapi: JSONAPIData?), SpineError> {
+        let promise = Promise<(resource: T, errors :[APIError]?, meta: Metadata?, jsonapi: JSONAPIData?), SpineError>()
+        
+        let operation = FetchOperation(query: query, spine: self)
+        
+        operation.completionBlock = { [unowned operation] in
+            switch operation.result! {
+            case .success(let document) where document.data?.count == 0 || document.data == nil:
+                promise.failure(SpineError.resourceNotFound)
+            case .success(let document):
+                let firstResource = document.data!.first as! T
+                let response = (resource: firstResource, errors: document.errors, meta: document.meta, jsonapi: document.jsonapi)
+                promise.success(response)
+            case .failure(let error):
+                promise.failure(error)
+            }
+        }
+        
+        addOperation(operation)
+        
+        return promise.future
+    }
+ 
 	/// Fetch one resource with the given ID and type.
 	/// If the response contains multiple resources, the first resource is returned.
 	/// If the response indicates success but doesn't contain any resources, the returned future fails.
